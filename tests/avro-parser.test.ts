@@ -4,7 +4,7 @@ import snappyjs from "snappyjs";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { ServerAvroParser, parseAvroBuffer } from "../src/lib/ingestion/avro-parser";
+import { ServerAvroParser, parseAvroBuffer, sanitizeAvroSchema } from "../src/lib/ingestion/avro-parser";
 
 describe("Server-Side Avro Parser", () => {
   it("encodes and decodes a valid Avro container file", async () => {
@@ -106,5 +106,28 @@ describe("Server-Side Avro Parser", () => {
     expect(res.invalidRecords).toBe(1);
     expect(res.errorMessages.length).toBeGreaterThan(0);
     expect(res.errorMessages[0]).toContain("Avro");
+  });
+
+  it("sanitizes union fields with mismatched defaults (e.g. default [] with first type null)", () => {
+    const rawSchema = {
+      type: "record",
+      name: "SampleRecord",
+      fields: [
+        {
+          name: "permissions",
+          type: ["null", { type: "array", items: "string" }],
+          default: [],
+        },
+        {
+          name: "note",
+          type: ["null", "string"],
+          default: "default_note",
+        },
+      ],
+    };
+
+    const sanitized = sanitizeAvroSchema(rawSchema);
+    expect(sanitized.fields[0].default).toBeNull();
+    expect(sanitized.fields[1].default).toBeNull();
   });
 });

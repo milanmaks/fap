@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Database, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatBytes } from "@/lib/utils/format";
 import { SupportedFileType, classifyFile } from "@/lib/ingestion/file-classifier";
@@ -24,6 +24,12 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
   const [createNew, setCreateNew] = useState(!currentDatasetId);
   const [newDatasetName, setNewDatasetName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (currentDatasetId) {
+      setCreateNew(false);
+    }
+  }, [currentDatasetId]);
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -60,6 +66,9 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
         formData.append("datasetId", currentDatasetId);
       } else if (newDatasetName.trim()) {
         formData.append("datasetName", newDatasetName.trim());
+      } else if (currentDatasetId) {
+        // Fallback: if user didn't enter a custom name for new dataset, upload into current dataset
+        formData.append("datasetId", currentDatasetId);
       }
 
       const res = await fetch("/api/uploads", {
@@ -116,6 +125,15 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           </div>
         )}
       </div>
+
+      {!createNew && currentDatasetId && (
+        <div className="mb-4 flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs text-indigo-900">
+          <Database className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>
+            Podaci će biti uvezeni u dataset <strong>{currentDatasetName || currentDatasetId}</strong> kao nova verzija.
+          </span>
+        </div>
+      )}
 
       {createNew && (
         <div className="mb-4">

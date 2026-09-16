@@ -3,6 +3,39 @@ import snappyjs from "snappyjs";
 import { Readable } from "stream";
 import { ParseResult } from "./json-parser";
 
+// Ensure 64-bit integers don't crash when exceeding JS safe integer range
+if ((avsc as any).types?.LongType?.prototype) {
+  (avsc as any).types.LongType.prototype._read = function (tap: any) {
+    return tap.readLong();
+  };
+}
+
+export function sanitizeAvroSchema(schema: any): any {
+  if (!schema || typeof schema !== "object") return schema;
+  if (Array.isArray(schema)) {
+    return schema.map(sanitizeAvroSchema);
+  }
+  const copy: Record<string, any> = { ...schema };
+  if (copy.fields && Array.isArray(copy.fields)) {
+    copy.fields = copy.fields.map((field: any) => {
+      const f = { ...field };
+      // Avro 1.x specification requires default value to match the first branch of a union.
+      // Many real-world schemas define ['null', 'array'] with default: [] or ['null', 'string'] with default: ''
+      if (Array.isArray(f.type) && f.default !== undefined) {
+        const firstType = f.type[0];
+        if (firstType === "null" && f.default !== null) {
+          f.default = null;
+        }
+      }
+      if (f.type && typeof f.type === "object") {
+        f.type = sanitizeAvroSchema(f.type);
+      }
+      return f;
+    });
+  }
+  return copy;
+}
+
 const defaultCodecs = ((avsc as any).streams?.BlockDecoder?.getDefaultCodecs?.() || {}) as Record<string, any>;
 
 const AVRO_CODECS = {
@@ -65,7 +98,10 @@ export class ServerAvroParser implements AvroParser {
     let decoder: any;
     try {
       decoder = (stream as any).pipe(
-        new (avsc as any).streams.BlockDecoder({ codecs: AVRO_CODECS })
+        new (avsc as any).streams.BlockDecoder({
+          codecs: AVRO_CODECS,
+          parseHook: sanitizeAvroSchema,
+        })
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -125,7 +161,10 @@ export class ServerAvroParser implements AvroParser {
     return new Promise((resolve, reject) => {
       try {
         const decoder = (stream as any).pipe(
-          new (avsc as any).streams.BlockDecoder({ codecs: AVRO_CODECS })
+          new (avsc as any).streams.BlockDecoder({
+            codecs: AVRO_CODECS,
+            parseHook: sanitizeAvroSchema,
+          })
         );
         decoder.on("metadata", (type: any) => {
           resolve(type);
