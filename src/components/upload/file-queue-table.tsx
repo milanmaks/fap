@@ -30,7 +30,7 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
 }) => {
   if (files.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-400 text-xs">
+      <div className="p-8 text-center text-zinc-400 text-xs">
         Nema uvezenih datoteka za ovu verziju.
       </div>
     );
@@ -70,8 +70,8 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-xs text-slate-600">
-        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+      <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-400">
+        <thead className="bg-zinc-50 dark:bg-zinc-850 text-zinc-700 dark:text-zinc-200 font-semibold border-b border-zinc-200 dark:border-zinc-800">
           <tr>
             {onToggleSelectFile && <th className="w-8 px-3 py-3 text-center"></th>}
             <th className="px-4 py-3">Naziv fajla & Lineage</th>
@@ -82,7 +82,7 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
             <th className="px-4 py-3 text-right">Akcija</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
           {files.map((file) => {
             const isFromZip = file.originalName.includes("→");
             const isSelected = selectedFileIds.includes(file.id);
@@ -91,7 +91,7 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
               <tr
                 key={file.id}
                 className={`transition-colors ${
-                  isSelected ? "bg-indigo-50/40" : "hover:bg-slate-50/70"
+                  isSelected ? "bg-indigo-50/50 dark:bg-indigo-950/30" : "hover:bg-zinc-50/70 dark:hover:bg-zinc-800/30"
                 }`}
               >
                 {onToggleSelectFile && (
@@ -100,34 +100,34 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => onToggleSelectFile(file.id)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                   </td>
                 )}
-                <td className="px-4 py-3 font-medium text-slate-900">
+                <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
                   <div className="flex items-center gap-2">
                     {isFromZip ? (
-                      <Archive className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <Archive className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     ) : (
-                      <FileCode className="w-4 h-4 text-slate-400 shrink-0" />
+                      <FileCode className="w-4 h-4 text-zinc-400 shrink-0" />
                     )}
-                    <span className="truncate max-w-xs sm:max-w-md font-medium" title={file.originalName}>
+                    <span className="truncate max-w-xs sm:max-w-md font-medium font-sans" title={file.originalName}>
                       {file.originalName}
                     </span>
                   </div>
                 </td>
-                <td className="px-3 py-3 font-mono uppercase text-[11px] text-slate-700">
+                <td className="px-3 py-3 font-mono uppercase text-[11px] text-zinc-700 dark:text-zinc-300">
                   {file.fileType}
                 </td>
-                <td className="px-3 py-3">{formatBytes(file.sizeBytes)}</td>
+                <td className="px-3 py-3 text-zinc-600 dark:text-zinc-400 font-sans">{formatBytes(file.sizeBytes)}</td>
                 <td className="px-3 py-3">{getStatusBadge(file.status)}</td>
-                <td className="px-4 py-3 text-slate-500">
+                <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-sans">
                   {file.errorMessage ? (
-                    <span className="text-rose-600 truncate block max-w-xs" title={file.errorMessage}>
+                    <span className="text-rose-600 dark:text-rose-400 truncate block max-w-xs" title={file.errorMessage}>
                       {file.errorMessage}
                     </span>
                   ) : (
-                    <span className="text-slate-400">Uspešno profilisan</span>
+                    <span className="text-zinc-400 dark:text-zinc-500">Uspešno profilisan</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -136,7 +136,7 @@ export const FileQueueTable: React.FC<FileQueueTableProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => onViewFile(file)}
-                      className="text-[11px] gap-1 py-1 h-7 text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                      className="text-[11px] gap-1 py-1 h-7 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
                       title="Pogledaj detalje i zapise ovog fajla"
                     >
                       <Eye className="w-3.5 h-3.5" />

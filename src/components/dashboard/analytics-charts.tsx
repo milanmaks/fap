@@ -44,30 +44,30 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
   }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Chart 1 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Stopa Null vrednosti po kolonama (%)</CardTitle>
+          <CardTitle className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Stopa Null vrednosti po kolonama (%)</CardTitle>
         </CardHeader>
         <CardContent>
           {nullRateData.length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-slate-400 text-xs">
+            <div className="h-56 flex items-center justify-center text-zinc-400 dark:text-zinc-500 text-xs">
               Nema podataka o kolonama
             </div>
           ) : (
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={nullRateData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-zinc-100 dark:text-zinc-800" />
                   <XAxis
                     dataKey="column"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tick={{ fontSize: 11, fill: "#71717a" }}
                     interval={0}
                     angle={-20}
                     textAnchor="end"
                   />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} unit="%" domain={[0, 100]} />
+                  <YAxis tick={{ fontSize: 11, fill: "#71717a" }} unit="%" domain={[0, 100]} />
                   <Tooltip
                     formatter={(val: any, _name: any, item: any) => [
                       `${val}% (${item.payload.nullCount} zapisa)`,
@@ -75,10 +75,11 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                     ]}
                     labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullPath || ""}
                     contentStyle={{
-                      backgroundColor: "#ffffff",
+                      backgroundColor: "var(--card-bg, #18181b)",
                       borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid var(--card-border, #27272a)",
                       fontSize: "12px",
+                      color: "#f4f4f5",
                     }}
                   />
                   <Bar dataKey="nullPercentage" fill="#f59e0b" radius={[4, 4, 0, 0]}>
@@ -99,34 +100,35 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
       {/* Chart 2 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Veličina uvezenih fajlova (KB)</CardTitle>
+          <CardTitle className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Veličina uvezenih fajlova (KB)</CardTitle>
         </CardHeader>
         <CardContent>
           {fileData.length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-slate-400 text-xs">
+            <div className="h-56 flex items-center justify-center text-zinc-400 dark:text-zinc-500 text-xs">
               Nema uvezenih fajlova
             </div>
           ) : (
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={fileData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-zinc-100 dark:text-zinc-800" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tick={{ fontSize: 11, fill: "#71717a" }}
                     interval={0}
                     angle={-20}
                     textAnchor="end"
                   />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} unit=" KB" />
+                  <YAxis tick={{ fontSize: 11, fill: "#71717a" }} unit=" KB" />
                   <Tooltip
                     formatter={(val: any) => [`${val} KB`, "Veličina"]}
                     labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullName || ""}
                     contentStyle={{
-                      backgroundColor: "#ffffff",
+                      backgroundColor: "var(--card-bg, #18181b)",
                       borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid var(--card-border, #27272a)",
                       fontSize: "12px",
+                      color: "#f4f4f5",
                     }}
                   />
                   <Bar dataKey="sizeKb" fill="#6366f1" radius={[4, 4, 0, 0]} />

@@ -93,22 +93,22 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-2xs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Uvoz podataka (Ingestion)</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Uvoz podataka (Ingestion)</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Otpremite podatke za profilisanje, verzionisanje i AI analitiku.
           </p>
         </div>
 
         {currentDatasetId && (
-          <div className="flex items-center space-x-2 text-xs bg-slate-100 p-1.5 rounded-lg border border-slate-200">
+          <div className="flex items-center space-x-2 text-xs bg-zinc-100 dark:bg-zinc-800 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => setCreateNew(false)}
               className={`px-2.5 py-1 rounded-md transition font-medium ${
-                !createNew ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                !createNew ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
               }`}
             >
               Nova verzija ({currentDatasetName || "Trenutni"})
@@ -117,7 +117,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
               type="button"
               onClick={() => setCreateNew(true)}
               className={`px-2.5 py-1 rounded-md transition font-medium ${
-                createNew ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                createNew ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
               }`}
             >
               Novi dataset
@@ -127,8 +127,8 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
       </div>
 
       {!createNew && currentDatasetId && (
-        <div className="mb-4 flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs text-indigo-900">
-          <Database className="w-4 h-4 text-indigo-600 shrink-0" />
+        <div className="mb-4 flex items-center gap-2 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-lg text-xs text-indigo-900 dark:text-indigo-200">
+          <Database className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <span>
             Podaci će biti uvezeni u dataset <strong>{currentDatasetName || currentDatasetId}</strong> kao nova verzija.
           </span>
@@ -137,7 +137,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
 
       {createNew && (
         <div className="mb-4">
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
             Naziv novog dataset-a (opciono):
           </label>
           <input
@@ -145,7 +145,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
             placeholder="npr. Transakcije Korisnika 2026"
             value={newDatasetName}
             onChange={(e) => setNewDatasetName(e.target.value)}
-            className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            className="w-full text-xs sm:text-sm px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           />
         </div>
       )}
@@ -161,8 +161,8 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
           dragOver
-            ? "border-indigo-500 bg-indigo-50/50"
-            : "border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50"
+            ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30"
+            : "border-zinc-300 dark:border-zinc-750 hover:border-indigo-400 dark:hover:border-indigo-500 bg-zinc-50/50 dark:bg-zinc-850/40 hover:bg-zinc-50 dark:hover:bg-zinc-850/60"
         }`}
       >
         <input
@@ -174,26 +174,26 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="flex flex-col items-center justify-center space-y-3">
-          <div className="p-3 bg-indigo-100 rounded-full text-indigo-600">
+          <div className="p-3 bg-indigo-100 dark:bg-indigo-950/60 rounded-full text-indigo-600 dark:text-indigo-400">
             <UploadCloud className="w-8 h-8" />
           </div>
           <div>
-            <span className="font-semibold text-slate-900 text-sm">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
               Kliknite za odabir fajlova
             </span>{" "}
-            <span className="text-slate-500 text-sm">ili prevucite fajlove ovde</span>
+            <span className="text-zinc-500 dark:text-zinc-400 text-sm">ili prevucite fajlove ovde</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-            <span className="text-xs bg-slate-200 text-slate-700 font-mono px-2 py-0.5 rounded">
+            <span className="text-[11px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono px-2 py-0.5 rounded">
               .avro
             </span>
-            <span className="text-xs bg-slate-200 text-slate-700 font-mono px-2 py-0.5 rounded">
+            <span className="text-[11px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono px-2 py-0.5 rounded">
               .json
             </span>
-            <span className="text-xs bg-slate-200 text-slate-700 font-mono px-2 py-0.5 rounded">
+            <span className="text-[11px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono px-2 py-0.5 rounded">
               .jsonl / .ndjson
             </span>
-            <span className="text-xs bg-slate-200 text-slate-700 font-mono px-2 py-0.5 rounded">
+            <span className="text-[11px] bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono px-2 py-0.5 rounded">
               .zip
             </span>
           </div>
@@ -203,12 +203,12 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
       {/* Selected Files List */}
       {selectedFiles.length > 0 && (
         <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+          <div className="flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300">
             <span>Izabrano datoteka ({selectedFiles.length}):</span>
             <button
               type="button"
               onClick={() => setSelectedFiles([])}
-              className="text-rose-600 hover:underline"
+              className="text-rose-600 dark:text-rose-400 hover:underline"
             >
               Ukloni sve
             </button>
@@ -219,19 +219,19 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
               return (
                 <div
                   key={`${file.name}-${idx}`}
-                  className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs"
                 >
                   <div className="flex items-center space-x-2 truncate">
-                    <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="font-medium text-slate-800 truncate">{file.name}</span>
-                    <span className="text-slate-400">({formatBytes(file.size)})</span>
+                    <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">{file.name}</span>
+                    <span className="text-zinc-400 dark:text-zinc-500">({formatBytes(file.size)})</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span
                       className={`px-1.5 py-0.5 rounded uppercase font-mono text-[10px] ${
                         cls.isSupported
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                       }`}
                     >
                       {cls.fileType}
@@ -242,7 +242,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
                         e.stopPropagation();
                         removeFile(idx);
                       }}
-                      className="text-slate-400 hover:text-rose-600 font-bold px-1"
+                      className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold px-1"
                     >
                       ✕
                     </button>
@@ -272,7 +272,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
       )}
 
       {error && (
-        <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center space-x-2">
+        <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-lg text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>

@@ -64,16 +64,16 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
         <select
           value={currentDatasetId || ""}
           onChange={(e) => onSelectDataset(e.target.value)}
-          className="appearance-none bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm font-medium py-2 pl-9 pr-8 rounded-lg shadow-xs hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          className="appearance-none bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm font-medium py-2 pl-9 pr-8 rounded-lg shadow-2xs hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
         >
           {datasets.map((d) => (
-            <option key={d.id} value={d.id}>
+            <option key={d.id} value={d.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
               {d.name}
             </option>
           ))}
         </select>
-        <Database className="w-4 h-4 text-indigo-600 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Database className="w-4 h-4 text-indigo-600 dark:text-indigo-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
 
       <Button
@@ -92,7 +92,7 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
           variant="ghost"
           size="sm"
           onClick={() => setShowDeleteModal(true)}
-          className="text-slate-400 hover:text-rose-600 p-2"
+          className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 p-2"
           title="Obriši trenutni dataset"
         >
           <Trash2 className="w-4 h-4" />
@@ -101,18 +101,18 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
 
       {/* Modal dialog for creating new dataset */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
-            <h3 className="text-base font-semibold text-slate-900 mb-1">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-800">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
               Kreirajte novi dataset
             </h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
               Definišite naziv i opcioni opis za novi skup podataka.
             </p>
 
             <form onSubmit={handleCreate} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                   Naziv dataset-a *
                 </label>
                 <input
@@ -121,12 +121,12 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
                   placeholder="npr. Finansijske transakcije Q1"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full text-xs sm:text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                   Opis (opciono)
                 </label>
                 <textarea
@@ -134,7 +134,7 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  className="w-full text-xs sm:text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -158,19 +158,19 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
 
       {/* Confirmation modal for deleting dataset */}
       {showDeleteModal && currentDataset && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
-            <div className="flex items-center space-x-3 mb-3 text-rose-600">
-              <div className="p-2 bg-rose-50 rounded-lg">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center space-x-3 mb-3 text-rose-600 dark:text-rose-400">
+              <div className="p-2 bg-rose-500/10 rounded-lg">
                 <AlertTriangle className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                 Brisanje dataset-a
               </h3>
             </div>
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
               Da li ste sigurni da želite da trajno obrišete dataset{" "}
-              <strong className="text-slate-900 font-semibold">{currentDataset.name}</strong> i sve njegove
+              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{currentDataset.name}</strong> i sve njegove
               verzije, uvezene fajlove i istoriju razgovora?
             </p>
 

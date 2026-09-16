@@ -22,11 +22,16 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantClasses = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500 shadow-sm",
-    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-800 focus:ring-slate-400",
-    outline: "border border-slate-300 hover:bg-slate-50 text-slate-700 focus:ring-indigo-500",
-    danger: "bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-500",
-    ghost: "text-slate-600 hover:bg-slate-100 focus:ring-slate-400",
+    primary:
+      "bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500 shadow-2xs dark:bg-indigo-600 dark:hover:bg-indigo-500",
+    secondary:
+      "bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 focus:ring-slate-400",
+    outline:
+      "border border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 focus:ring-indigo-500",
+    danger:
+      "bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-500 shadow-2xs",
+    ghost:
+      "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 focus:ring-slate-400",
   };
 
   return (

@@ -10,25 +10,29 @@ import { AnalyticsCharts } from "@/components/dashboard/analytics-charts";
 import { VersionHistory } from "@/components/dashboard/version-history";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { DatasetSelector } from "@/components/datasets/dataset-selector";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Database,
   BarChart3,
   Bot,
-  ArrowRight,
   ShieldCheck,
   RefreshCw,
   Loader2,
-  Sparkles,
-  Columns,
   Files,
   GitCompare,
+  UploadCloud,
+  ChevronRight,
+  Sparkles,
+  X,
 } from "lucide-react";
-import { formatNumber } from "@/lib/utils/format";
 import { VersionCompareTab } from "@/components/analytics/version-compare-tab";
 import { QualityTab } from "@/components/analytics/quality-tab";
 import { FileDetailModal } from "@/components/files/file-detail-modal";
+
+type MainTab = "overview" | "compare" | "quality" | "files" | "chat";
 
 export default function DashboardPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -39,8 +43,9 @@ export default function DashboardPage() {
   const [snapshot, setSnapshot] = useState<AnalyticsSnapshot | null>(null);
   const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [navTab, setNavTab] = useState<"analytics" | "chat">("analytics");
-  const [activeTab, setActiveTab] = useState<"overview" | "compare" | "quality" | "files">("overview");
+  const [activeTab, setActiveTab] = useState<MainTab>("overview");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showVersionDrawer, setShowVersionDrawer] = useState(false);
   const [selectedFileForModal, setSelectedFileForModal] = useState<SourceFile | null>(null);
 
   // Fetch all datasets
@@ -162,6 +167,7 @@ export default function DashboardPage() {
   };
 
   const handleUploadSuccess = async (result: any) => {
+    setShowUploadModal(false);
     await loadDatasets(result.datasetId);
     await loadVersions(result.datasetId, result.version.id);
   };
@@ -169,26 +175,27 @@ export default function DashboardPage() {
   const activeDataset = datasets.find((d) => d.id === selectedDatasetId);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header with Navigation */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-base shadow-xs">
+    <div className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Top Application Navigation Bar */}
+      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center space-x-3.5">
+            {/* Logo */}
+            <div className="flex items-center space-x-2.5">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-black text-xs shadow-xs">
                 F
               </div>
-              <div>
-                <span className="font-bold text-slate-900 text-lg tracking-tight">FAP</span>
-                <span className="hidden sm:inline-block text-[11px] text-slate-500 ml-2 font-mono">
-                  File Analytics Platform
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm tracking-tight">FAP</span>
+                <span className="hidden sm:inline-block text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                  Observability
                 </span>
               </div>
             </div>
 
-            <div className="h-5 w-[1px] bg-slate-200 hidden md:block" />
+            <div className="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-800 hidden md:block" />
 
-            {/* Dataset Selector Dropdown, Create & Delete */}
+            {/* Dataset Selector Dropdown */}
             <DatasetSelector
               datasets={datasets}
               currentDatasetId={selectedDatasetId}
@@ -199,32 +206,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Top Navigation Tabs - Seamless switching between Analytics & Chatbot */}
-            <button
-              onClick={() => setNavTab("analytics")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-                navTab === "analytics"
-                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
+            {/* Ingestion Button */}
+            <Button
+              size="sm"
+              onClick={() => setShowUploadModal(true)}
+              className="text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
             >
-              <BarChart3 className="w-4 h-4 text-indigo-600" />
-              <span>Analitika</span>
-            </button>
-            <button
-              onClick={() => setNavTab("chat")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-                navTab === "chat"
-                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Bot className="w-4 h-4 text-indigo-600" />
-              <span>AI Četbot</span>
-            </button>
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Uvoz podataka</span>
+            </Button>
 
-            <div className="h-5 w-[1px] bg-slate-200 hidden sm:block mx-1" />
-
+            {/* Refresh Button */}
             <button
               onClick={() => {
                 if (selectedDatasetId && selectedVersionId) {
@@ -232,93 +224,146 @@ export default function DashboardPage() {
                 }
               }}
               title="Osveži podatke"
-              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition"
+              className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
+
+            <div className="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-800 hidden sm:block mx-0.5" />
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Context Banner */}
-        {activeDataset && currentVersion && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white border border-slate-200 rounded-xl p-4 gap-4 shadow-2xs">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-lg">
-                <Database className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-slate-900">{activeDataset.name}</h1>
-                  <span className="text-xs font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full font-mono">
-                    v{currentVersion.versionNumber}
-                  </span>
-                  <Badge
-                    variant={
-                      currentVersion.status === "ready"
-                        ? "success"
-                        : currentVersion.status === "partial"
-                        ? "warning"
-                        : "danger"
-                    }
-                  >
-                    {currentVersion.status}
-                  </Badge>
-                </div>
-                {activeDataset.description && (
-                  <p className="text-xs text-slate-500 mt-0.5">{activeDataset.description}</p>
-                )}
-              </div>
+      {/* Telemetry Status Bar & Context Header */}
+      {activeDataset && currentVersion && (
+        <div className="border-b border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900/60 px-4 sm:px-6 lg:px-8 py-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">{activeDataset.name}</span>
+              <span className="text-zinc-400 dark:text-zinc-600">/</span>
+              <button
+                onClick={() => setShowVersionDrawer(true)}
+                className="inline-flex items-center gap-1.5 font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition"
+              >
+                <span>v{currentVersion.versionNumber}</span>
+                <ChevronRight className="w-3 h-3 text-indigo-500" />
+              </button>
+              <Badge
+                variant={
+                  currentVersion.status === "ready"
+                    ? "success"
+                    : currentVersion.status === "partial"
+                    ? "warning"
+                    : "danger"
+                }
+                className="text-[10px] py-0"
+              >
+                {currentVersion.status}
+              </Badge>
+              {activeDataset.description && (
+                <span className="hidden md:inline text-zinc-400 dark:text-zinc-500 truncate max-w-sm">
+                  — {activeDataset.description}
+                </span>
+              )}
             </div>
 
-            {navTab === "analytics" ? (
+            <div className="flex items-center space-x-3 text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+              <span>{currentVersion.totalFiles} fajlova</span>
+              <span>·</span>
+              <span>{currentVersion.totalRecords} zapisa</span>
+              <span>·</span>
               <button
-                onClick={() => setNavTab("chat")}
-                className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs transition"
+                onClick={() => setShowVersionDrawer(!showVersionDrawer)}
+                className="text-indigo-600 dark:text-indigo-400 hover:underline font-sans font-medium"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Otvori AI Četbot tab</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                Istorija ({versions.length})
               </button>
-            ) : (
-              <button
-                onClick={() => setNavTab("analytics")}
-                className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
-              >
-                <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Pregledaj detaljnu analitiku</span>
-              </button>
-            )}
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* TAB 1: ANALITIKA */}
-        {navTab === "analytics" && (
+      {/* Main Workspace Navigation Tabs */}
+      <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-6 overflow-x-auto no-scrollbar" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === "overview"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Pregled i profil ({snapshot?.columnStats.length || 0})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("compare")}
+              className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === "compare"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <GitCompare className="w-4 h-4" />
+              <span>Poređenje (Diff & Overlap)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("quality")}
+              className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === "quality"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Kvalitet podataka</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("files")}
+              className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === "files"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <Files className="w-4 h-4" />
+              <span>Uvezeni fajlovi ({sourceFiles.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === "chat"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
+              }`}
+            >
+              <Bot className="w-4 h-4" />
+              <span>AI Asistent</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* TAB 1: OVERVIEW */}
+        {activeTab === "overview" && (
           <div className="space-y-6">
-            {/* Upload Dropzone */}
-            <FileDropzone
-              currentDatasetId={selectedDatasetId}
-              currentDatasetName={activeDataset?.name}
-              onUploadSuccess={handleUploadSuccess}
-            />
-
             {/* KPIs */}
             {currentVersion && (
               <KpiCards version={currentVersion} snapshot={snapshot} />
             )}
 
-            {/* Version History List */}
-            {versions.length > 0 && (
-              <VersionHistory
-                versions={versions}
-                selectedVersionId={selectedVersionId}
-                onSelectVersion={(id) => setSelectedVersionId(id)}
-              />
-            )}
-
-            {/* Visual Analytics Charts */}
+            {/* Charts */}
             {snapshot && (
               <AnalyticsCharts
                 stats={snapshot.columnStats}
@@ -327,123 +372,60 @@ export default function DashboardPage() {
               />
             )}
 
-            {/* 4 Analytics Tabs Navigation */}
-            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-              <button
-                onClick={() => setActiveTab("overview")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                  activeTab === "overview"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>Pregled & Kolone ({snapshot?.columnStats.length || 0})</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("compare")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                  activeTab === "compare"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
-                }`}
-              >
-                <GitCompare className="w-3.5 h-3.5" />
-                <span>Poređenje Verzija (Diff & Overlap)</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("quality")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                  activeTab === "quality"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Kvalitet Podataka (Data Quality)</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("files")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-                  activeTab === "files"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
-                }`}
-              >
-                <Files className="w-3.5 h-3.5" />
-                <span>Uvezeni Fajlovi ({sourceFiles.length})</span>
-              </button>
-            </div>
-
-            {/* Tab 1: Overview & Column Stats */}
-            {activeTab === "overview" && (
-              <Card>
-                <CardContent className="p-0">
-                  {loading ? (
-                    <div className="py-12 flex items-center justify-center space-x-2 text-slate-400 text-xs">
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                      <span>Učitavanje analitike...</span>
-                    </div>
-                  ) : (
-                    <ColumnStatsTable
-                      stats={snapshot?.columnStats || []}
-                      totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tab 2: Version Comparison & Diff */}
-            {activeTab === "compare" && selectedDatasetId && (
-              <VersionCompareTab
-                datasetId={selectedDatasetId}
-                datasetName={activeDataset?.name}
-                versions={versions}
-                currentVersionId={selectedVersionId}
-                sourceFiles={sourceFiles}
-                onUploadSuccess={handleUploadSuccess}
-              />
-            )}
-
-            {/* Tab 3: Data Quality Scoring */}
-            {activeTab === "quality" && selectedDatasetId && selectedVersionId && (
-              <QualityTab
-                datasetId={selectedDatasetId}
-                versionId={selectedVersionId}
-                versionNumber={currentVersion?.versionNumber}
-              />
-            )}
-
-            {/* Tab 4: Imported Files */}
-            {activeTab === "files" && (
-              <Card>
-                <CardContent className="p-0">
-                  <FileQueueTable
-                    files={sourceFiles}
-                    onViewFile={(file) => setSelectedFileForModal(file)}
+            {/* Column Profile Table */}
+            <Card>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="py-16 flex items-center justify-center space-x-2 text-zinc-400 text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                    <span>Učitavanje analitike...</span>
+                  </div>
+                ) : (
+                  <ColumnStatsTable
+                    stats={snapshot?.columnStats || []}
+                    totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
                   />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* File Details & Records Explorer Modal */}
-            {selectedFileForModal && selectedDatasetId && selectedVersionId && (
-              <FileDetailModal
-                file={selectedFileForModal}
-                datasetId={selectedDatasetId}
-                versionId={selectedVersionId}
-                onClose={() => setSelectedFileForModal(null)}
-              />
-            )}
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        {/* TAB 2: AI ČETBOT */}
-        {navTab === "chat" && (
+        {/* TAB 2: DIFF & OVERLAP */}
+        {activeTab === "compare" && selectedDatasetId && (
+          <VersionCompareTab
+            datasetId={selectedDatasetId}
+            datasetName={activeDataset?.name}
+            versions={versions}
+            currentVersionId={selectedVersionId}
+            sourceFiles={sourceFiles}
+            onUploadSuccess={handleUploadSuccess}
+          />
+        )}
+
+        {/* TAB 3: DATA QUALITY */}
+        {activeTab === "quality" && selectedDatasetId && selectedVersionId && (
+          <QualityTab
+            datasetId={selectedDatasetId}
+            versionId={selectedVersionId}
+            versionNumber={currentVersion?.versionNumber}
+          />
+        )}
+
+        {/* TAB 4: IMPORTED FILES */}
+        {activeTab === "files" && (
+          <Card>
+            <CardContent className="p-0">
+              <FileQueueTable
+                files={sourceFiles}
+                onViewFile={(file) => setSelectedFileForModal(file)}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* TAB 5: AI CHATBOT */}
+        {activeTab === "chat" && (
           <div className="space-y-4">
             {selectedDatasetId && selectedVersionId && currentVersion ? (
               <ChatPanel
@@ -454,25 +436,18 @@ export default function DashboardPage() {
               />
             ) : (
               <Card>
-                <CardContent className="p-16 text-center text-slate-400 text-sm">
+                <CardContent className="p-16 text-center text-zinc-400 text-sm">
                   {loading ? (
                     <div className="flex items-center justify-center space-x-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
                       <span>Učitavanje dataset-a...</span>
                     </div>
                   ) : (
                     <div>
-                      <Bot className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="font-semibold text-slate-700">Nema izabranog dataset-a</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Izaberite dataset iz gornjeg menija ili pređite na tab{" "}
-                        <button
-                          onClick={() => setNavTab("analytics")}
-                          className="text-indigo-600 underline font-medium"
-                        >
-                          Analitika
-                        </button>{" "}
-                        kako biste otpremili podatke.
+                      <Bot className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
+                      <p className="font-semibold text-zinc-700 dark:text-zinc-300">Nema izabranog dataset-a</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                        Izaberite dataset iz gornjeg menija ili kliknite na dugme za uvoz podataka.
                       </p>
                     </div>
                   )}
@@ -483,12 +458,68 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-12 py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>FAP — File Analytics Platform & AI Chatbot</span>
-          <span className="font-mono text-[11px] text-slate-400">
-            Next.js App Router · TypeScript Strict · Tailwind CSS · Gemini Flash
+      {/* Version History Drawer Modal */}
+      {showVersionDrawer && versions.length > 0 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl max-w-xl w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                Istorija verzija ({versions.length})
+              </h3>
+              <button
+                onClick={() => setShowVersionDrawer(false)}
+                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <VersionHistory
+              versions={versions}
+              selectedVersionId={selectedVersionId}
+              onSelectVersion={(id) => {
+                setSelectedVersionId(id);
+                setShowVersionDrawer(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Ingestion Dropzone Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl max-w-2xl w-full p-2 relative overflow-hidden">
+            <button
+              onClick={() => setShowUploadModal(false)}
+              className="absolute top-4 right-4 z-10 p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <FileDropzone
+              currentDatasetId={selectedDatasetId}
+              currentDatasetName={activeDataset?.name}
+              onUploadSuccess={handleUploadSuccess}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* File Details & Records Explorer Modal */}
+      {selectedFileForModal && selectedDatasetId && selectedVersionId && (
+        <FileDetailModal
+          file={selectedFileForModal}
+          datasetId={selectedDatasetId}
+          versionId={selectedVersionId}
+          onClose={() => setSelectedFileForModal(null)}
+        />
+      )}
+
+      {/* Minimal Footer */}
+      <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 mt-12 text-[11px] text-zinc-400 dark:text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>FAP Observability & Quality Platform</span>
+          <span className="font-mono text-[10px]">
+            TypeScript · Avro/JSON Engine · Dark Mode Ready
           </span>
           <span>Autor: Milan Maksimović</span>
         </div>
