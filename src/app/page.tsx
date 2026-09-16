@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { Dataset, DatasetVersion, AnalyticsSnapshot, SourceFile } from "@/lib/domain/types";
 import { FileDropzone } from "@/components/upload/file-dropzone";
 import { FileQueueTable } from "@/components/upload/file-queue-table";
@@ -9,6 +8,7 @@ import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { ColumnStatsTable } from "@/components/dashboard/column-stats-table";
 import { AnalyticsCharts } from "@/components/dashboard/analytics-charts";
 import { VersionHistory } from "@/components/dashboard/version-history";
+import { ChatPanel } from "@/components/chat/chat-panel";
 import { DatasetSelector } from "@/components/datasets/dataset-selector";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,10 @@ import {
   RefreshCw,
   Loader2,
   Sparkles,
+  Columns,
+  Files,
 } from "lucide-react";
+import { formatNumber } from "@/lib/utils/format";
 
 export default function DashboardPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -32,6 +35,7 @@ export default function DashboardPage() {
   const [snapshot, setSnapshot] = useState<AnalyticsSnapshot | null>(null);
   const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [navTab, setNavTab] = useState<"analytics" | "chat">("analytics");
   const [activeTab, setActiveTab] = useState<"overview" | "files">("overview");
 
   // Fetch all datasets
@@ -165,7 +169,7 @@ export default function DashboardPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-base shadow-xs">
                 F
               </div>
@@ -175,7 +179,7 @@ export default function DashboardPage() {
                   File Analytics Platform
                 </span>
               </div>
-            </Link>
+            </div>
 
             <div className="h-5 w-[1px] bg-slate-200 hidden md:block" />
 
@@ -190,25 +194,29 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Top Navigation Tabs */}
-            <Link
-              href="/"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 transition flex items-center gap-1.5"
+            {/* Top Navigation Tabs - Seamless switching between Analytics & Chatbot */}
+            <button
+              onClick={() => setNavTab("analytics")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                navTab === "analytics"
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
             >
               <BarChart3 className="w-4 h-4 text-indigo-600" />
               <span>Analitika</span>
-            </Link>
-            <Link
-              href={
-                selectedDatasetId
-                  ? `/chat?datasetId=${selectedDatasetId}&versionId=${selectedVersionId}`
-                  : "/chat"
-              }
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition flex items-center gap-1.5"
+            </button>
+            <button
+              onClick={() => setNavTab("chat")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                navTab === "chat"
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
             >
-              <Bot className="w-4 h-4 text-slate-500" />
+              <Bot className="w-4 h-4 text-indigo-600" />
               <span>AI Četbot</span>
-            </Link>
+            </button>
 
             <div className="h-5 w-[1px] bg-slate-200 hidden sm:block mx-1" />
 
@@ -229,14 +237,7 @@ export default function DashboardPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Upload Dropzone */}
-        <FileDropzone
-          currentDatasetId={selectedDatasetId}
-          currentDatasetName={activeDataset?.name}
-          onUploadSuccess={handleUploadSuccess}
-        />
-
-        {/* Dataset Meta Banner & Chat Call-to-Action */}
+        {/* Context Banner */}
         {activeDataset && currentVersion && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white border border-slate-200 rounded-xl p-4 gap-4 shadow-2xs">
             <div className="flex items-center space-x-3">
@@ -267,84 +268,145 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Direct CTA button to Chatbot page */}
-            <Link
-              href={`/chat?datasetId=${selectedDatasetId}&versionId=${selectedVersionId}`}
-              className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs transition"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Otvori AI Četbot za ovaj dataset</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            {navTab === "analytics" ? (
+              <button
+                onClick={() => setNavTab("chat")}
+                className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Otvori AI Četbot tab</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setNavTab("analytics")}
+                className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Pregledaj detaljnu analitiku</span>
+              </button>
+            )}
           </div>
         )}
 
-        {/* KPIs */}
-        {currentVersion && (
-          <KpiCards version={currentVersion} snapshot={snapshot} />
+        {/* TAB 1: ANALITIKA */}
+        {navTab === "analytics" && (
+          <div className="space-y-6">
+            {/* Upload Dropzone */}
+            <FileDropzone
+              currentDatasetId={selectedDatasetId}
+              currentDatasetName={activeDataset?.name}
+              onUploadSuccess={handleUploadSuccess}
+            />
+
+            {/* KPIs */}
+            {currentVersion && (
+              <KpiCards version={currentVersion} snapshot={snapshot} />
+            )}
+
+            {/* Version History List */}
+            {versions.length > 0 && (
+              <VersionHistory
+                versions={versions}
+                selectedVersionId={selectedVersionId}
+                onSelectVersion={(id) => setSelectedVersionId(id)}
+              />
+            )}
+
+            {/* Visual Analytics Charts */}
+            {snapshot && (
+              <AnalyticsCharts
+                stats={snapshot.columnStats}
+                files={sourceFiles}
+                totalRecords={snapshot.recordCount}
+              />
+            )}
+
+            {/* Full-width Profile & Files Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setActiveTab("overview")}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
+                      activeTab === "overview"
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    Profil Kolona ({snapshot?.columnStats.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("files")}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
+                      activeTab === "files"
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    Uvezeni Fajlovi ({sourceFiles.length})
+                  </button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="py-12 flex items-center justify-center space-x-2 text-slate-400 text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                    <span>Učitavanje analitike...</span>
+                  </div>
+                ) : activeTab === "overview" ? (
+                  <ColumnStatsTable
+                    stats={snapshot?.columnStats || []}
+                    totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
+                  />
+                ) : (
+                  <FileQueueTable files={sourceFiles} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        {/* Version History List */}
-        {versions.length > 0 && (
-          <VersionHistory
-            versions={versions}
-            selectedVersionId={selectedVersionId}
-            onSelectVersion={(id) => setSelectedVersionId(id)}
-          />
-        )}
-
-        {/* Visual Analytics Charts */}
-        {snapshot && (
-          <AnalyticsCharts
-            stats={snapshot.columnStats}
-            files={sourceFiles}
-            totalRecords={snapshot.recordCount}
-          />
-        )}
-
-        {/* Full-width Profile & Files Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setActiveTab("overview")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-                  activeTab === "overview"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Profil Kolona ({snapshot?.columnStats.length || 0})
-              </button>
-              <button
-                onClick={() => setActiveTab("files")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-                  activeTab === "files"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Uvezeni Fajlovi ({sourceFiles.length})
-              </button>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="py-12 flex items-center justify-center space-x-2 text-slate-400 text-xs">
-                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                <span>Učitavanje analitike...</span>
-              </div>
-            ) : activeTab === "overview" ? (
-              <ColumnStatsTable
-                stats={snapshot?.columnStats || []}
-                totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
+        {/* TAB 2: AI ČETBOT */}
+        {navTab === "chat" && (
+          <div className="space-y-4">
+            {selectedDatasetId && selectedVersionId && currentVersion ? (
+              <ChatPanel
+                datasetId={selectedDatasetId}
+                datasetVersionId={selectedVersionId}
+                datasetName={activeDataset?.name || "Dataset"}
+                versionNumber={currentVersion.versionNumber}
               />
             ) : (
-              <FileQueueTable files={sourceFiles} />
+              <Card>
+                <CardContent className="p-16 text-center text-slate-400 text-sm">
+                  {loading ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                      <span>Učitavanje dataset-a...</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <Bot className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="font-semibold text-slate-700">Nema izabranog dataset-a</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Izaberite dataset iz gornjeg menija ili pređite na tab{" "}
+                        <button
+                          onClick={() => setNavTab("analytics")}
+                          className="text-indigo-600 underline font-medium"
+                        >
+                          Analitika
+                        </button>{" "}
+                        kako biste otpremili podatke.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </main>
 
       {/* Footer */}
