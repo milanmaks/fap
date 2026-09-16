@@ -1,0 +1,139 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Dataset {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  versions    DatasetVersion[]
+
+  @@map("datasets")
+}
+
+model DatasetVersion {
+  id             String              @id @default(cuid())
+  datasetId      String
+  versionNumber  Int
+  status         String              @default("queued") // queued, processing, ready, failed, partial
+  schemaJson     String?             @db.Text
+  schemaHash     String?
+  totalFiles     Int                 @default(0)
+  processedFiles Int                 @default(0)
+  totalRecords   Int                 @default(0)
+  errorCount     Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  completedAt    DateTime?
+
+  dataset        Dataset             @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  files          SourceFile[]
+  snapshots      AnalyticsSnapshot[]
+  chatSessions   ChatSession[]
+
+  @@unique([datasetId, versionNumber])
+  @@map("dataset_versions")
+}
+
+model SourceFile {
+  id               String              @id @default(cuid())
+  datasetVersionId String
+  originalName     String
+  fileType         String              // avro, json, jsonl, zip, unknown
+  mimeType         String?
+  sizeBytes        BigInt              @default(0)
+  checksum         String?
+  status           String              @default("queued") // queued, processing, ready, failed, skipped
+  storageKey       String?
+  errorMessage     String?             @db.Text
+  createdAt        DateTime            @default(now())
+
+  datasetVersion   DatasetVersion      @relation(fields: [datasetVersionId], references: [id], onDelete: Cascade)
+  fragments        FileFragment[]
+  snapshots        AnalyticsSnapshot[]
+
+  @@index([datasetVersionId, status])
+  @@map("source_files")
+}
+
+model FileFragment {
+  id           String      @id @default(cuid())
+  sourceFileId String
+  index        Int
+  recordStart  Int
+  recordEnd    Int
+  recordCount  Int
+  byteStart    BigInt?
+  byteEnd      BigInt?
+  status       String      @default("queued") // queued, processing, ready, failed
+  createdAt    DateTime    @default(now())
+
+  sourceFile   SourceFile  @relation(fields: [sourceFileId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceFileId, index])
+  @@map("file_fragments")
+}
+
+model AnalyticsSnapshot {
+  id                 String          @id @default(cuid())
+  datasetVersionId   String
+  sourceFileId       String?
+  periodStart        DateTime?
+  periodEnd          DateTime?
+  granularity        String?         @default("all") // all, hour, day, week, month
+  recordCount        Int             @default(0)
+  duplicateCount     Int?            @default(0)
+  invalidRecordCount Int             @default(0)
+  columnStatsJson    String          @db.Text
+  createdAt          DateTime        @default(now())
+
+  datasetVersion     DatasetVersion  @relation(fields: [datasetVersionId], references: [id], onDelete: Cascade)
+  sourceFile         SourceFile?     @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
+
+  @@index([datasetVersionId, createdAt])
+  @@map("analytics_snapshots")
+}
+
+model ChatSession {
+  id               String          @id @default(cuid())
+  datasetVersionId String
+  createdAt        DateTime        @default(now())
+
+  datasetVersion   DatasetVersion  @relation(fields: [datasetVersionId], references: [id], onDelete: Cascade)
+  messages         ChatMessage[]
+
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  chatSessionId String
+  role          String      // user, assistant, system
+  content       String      @db.Text
+  queryPlanJson String?     @db.Text
+  citationsJson String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId, createdAt])
+  @@map("chat_messages")
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  eventType   String
+  entityType  String
+  entityId    String?
+  payloadJson String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@map("audit_events")
+}

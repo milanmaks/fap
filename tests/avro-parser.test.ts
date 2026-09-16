@@ -1,0 +1,61 @@
+import { describe, it, expect } from "vitest";
+import avsc from "avsc";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { ServerAvroParser, parseAvroBuffer } from "../src/lib/ingestion/avro-parser";
+
+describe("Server-Side Avro Parser", () => {
+  it("encodes and decodes a valid Avro container file", async () => {
+    // 1. Create a valid Avro Object Container File (OCF) on disk
+    const schema = {
+      type: "record",
+      name: "UserEvent",
+      fields: [
+        { name: "userId", type: "string" },
+        { name: "event", type: "string" },
+        { name: "timestamp", type: "long" },
+      ],
+    };
+
+    const type = avsc.Type.forSchema(schema as any);
+    const tempFile = path.join(os.tmpdir(), `test_${Date.now()}.avro`);
+    const encoder = avsc.createFileEncoder(tempFile, type);
+
+    const records = [
+      { userId: "usr_1", event: "login", timestamp: 1773700000000 },
+      { userId: "usr_2", event: "purchase", timestamp: 1773700005000 },
+    ];
+
+    for (const r of records) {
+      encoder.write(r);
+    }
+    encoder.end();
+
+    await new Promise((resolve) => encoder.on("finish", resolve));
+
+    const avroBuffer = await fs.promises.readFile(tempFile);
+    await fs.promises.unlink(tempFile);
+
+    // 2. Decode with ServerAvroParser
+    const parser = new ServerAvroParser();
+    const decoded: any[] = [];
+    for await (const record of parser.parse(avroBuffer)) {
+      decoded.push(record);
+    }
+
+    expect(decoded.length).toBe(2);
+    expect(decoded[0].userId).toBe("usr_1");
+    expect(decoded[1].event).toBe("purchase");
+  });
+
+  it("handles malformed Avro buffer safely with descriptive error", async () => {
+    const malformedBuffer = Buffer.from("Not an avro file, random garbage bytes 12345");
+    const res = await parseAvroBuffer(malformedBuffer);
+
+    expect(res.records.length).toBe(0);
+    expect(res.invalidRecords).toBe(1);
+    expect(res.errorMessages.length).toBeGreaterThan(0);
+    expect(res.errorMessages[0]).toContain("Avro");
+  });
+});
