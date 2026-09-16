@@ -16,6 +16,7 @@ import {
   getNestedValue,
   roundCoordinate,
 } from "./hash-utils";
+import { profileRecords } from "../ingestion/profiler";
 
 export interface CompareVersionsInput {
   datasetId: string;
@@ -387,6 +388,9 @@ export function compareVersions(input: CompareVersionsInput): VersionDiff {
     datasetId,
     baseVersionId: baseVersion.id,
     targetVersionId: targetVersion.id,
+    comparisonType: "versions",
+    baseLabel: `v${baseVersion.versionNumber}`,
+    targetLabel: `v${targetVersion.versionNumber}`,
     generatedAt: new Date().toISOString(),
     kpis: {
       recordCount: calcKpiDelta(baseVersion.totalRecords, targetVersion.totalRecords),
@@ -403,6 +407,322 @@ export function compareVersions(input: CompareVersionsInput): VersionDiff {
         baseSnapshot.duplicateCount || 0,
         targetSnapshot.duplicateCount || 0
       ),
+      uniqueDeviceCount:
+        baseDevices.size > 0 || targetDevices.size > 0
+          ? calcKpiDelta(baseDevices.size, targetDevices.size)
+          : undefined,
+      timeRange: {
+        base: baseTime
+          ? {
+              start: new Date(baseTime.min).toISOString(),
+              end: new Date(baseTime.max).toISOString(),
+            }
+          : undefined,
+        target: targetTime
+          ? {
+              start: new Date(targetTime.min).toISOString(),
+              end: new Date(targetTime.max).toISOString(),
+            }
+          : undefined,
+      },
+    },
+    schemaDrift,
+    overlap: {
+      exactFiles: exactFilesCount,
+      exactDuplicateRecords,
+      overlappingRecords: exactDuplicateRecords + changedRecords,
+      changedRecords,
+      newRecords,
+      removedRecords,
+      temporalOverlapPercent,
+      spatialOverlapPercent,
+      deviceOverlapPercent,
+    },
+    recordExamples,
+  };
+}
+
+export interface CompareFilesInput {
+  datasetId: string;
+  fileA: SourceFile;
+  fileB: SourceFile;
+  recordsA: RecordWithLineage[];
+  recordsB: RecordWithLineage[];
+  options?: {
+    maxExamples?: number;
+    nullRateWarningDelta?: number;
+    nullRateCriticalDelta?: number;
+  };
+}
+
+export function compareFiles(input: CompareFilesInput): VersionDiff {
+  const { datasetId, fileA, fileB, recordsA, recordsB, options = {} } = input;
+
+  const maxExamples = options.maxExamples ?? 20;
+  const nullRateWarn = options.nullRateWarningDelta ?? 5.0;
+  const nullRateCrit = options.nullRateCriticalDelta ?? 25.0;
+
+  // 1. Exact File Checksums Overlap
+  const exactFilesCount =
+    fileA.checksum && fileB.checksum && fileA.checksum === fileB.checksum ? 1 : 0;
+
+  // 2. Hash Maps for File A Records
+  const baseCanonicalMap = new Map<string, RecordWithLineage>();
+  const baseBusinessKeyMap = new Map<string, RecordWithLineage>();
+
+  for (const r of recordsA) {
+    const cHash = computeCanonicalRecordHash(r);
+    baseCanonicalMap.set(cHash, r);
+
+    const bHash = computeBusinessKeyHash(r);
+    if (bHash) {
+      baseBusinessKeyMap.set(bHash, r);
+    }
+  }
+
+  // 3. Classify File B records
+  const targetCanonicalSet = new Set<string>();
+  const targetBusinessKeyMap = new Map<string, RecordWithLineage>();
+
+  let exactDuplicateRecords = 0;
+  let changedRecords = 0;
+  let newRecords = 0;
+
+  const recordExamples: VersionDiff["recordExamples"] = [];
+
+  for (let idx = 0; idx < recordsB.length; idx++) {
+    const r = recordsB[idx];
+    const cHash = computeCanonicalRecordHash(r);
+    targetCanonicalSet.add(cHash);
+
+    const bHash = computeBusinessKeyHash(r);
+    if (bHash) {
+      targetBusinessKeyMap.set(bHash, r);
+    }
+
+    let classification: RowComparisonClassification;
+    let prevRecord: Record<string, unknown> | undefined = undefined;
+
+    if (baseCanonicalMap.has(cHash)) {
+      exactDuplicateRecords++;
+      classification = "exact_duplicate";
+      prevRecord = baseCanonicalMap.get(cHash);
+    } else if (bHash && baseBusinessKeyMap.has(bHash)) {
+      changedRecords++;
+      classification = "changed";
+      prevRecord = baseBusinessKeyMap.get(bHash);
+    } else {
+      newRecords++;
+      classification = "new";
+    }
+
+    if (recordExamples.length < maxExamples) {
+      recordExamples.push({
+        classification,
+        canonicalHash: cHash,
+        businessKeyHash: bHash || undefined,
+        previous: prevRecord,
+        current: r,
+        lineage: {
+          datasetVersionId: fileB.datasetVersionId,
+          sourceFileId: fileB.id,
+          sourceFileName: fileB.originalName,
+          recordIndex: idx,
+        },
+      });
+    }
+  }
+
+  // 4. Removed records (present in A, but neither canonical nor business key in B)
+  let removedRecords = 0;
+  for (let idx = 0; idx < recordsA.length; idx++) {
+    const r = recordsA[idx];
+    const cHash = computeCanonicalRecordHash(r);
+    const bHash = computeBusinessKeyHash(r);
+
+    if (!targetCanonicalSet.has(cHash) && (!bHash || !targetBusinessKeyMap.has(bHash))) {
+      removedRecords++;
+      if (recordExamples.length < maxExamples) {
+        recordExamples.push({
+          classification: "removed_from_current_version",
+          canonicalHash: cHash,
+          businessKeyHash: bHash || undefined,
+          previous: r,
+          current: undefined,
+          lineage: {
+            datasetVersionId: fileA.datasetVersionId,
+            sourceFileId: fileA.id,
+            sourceFileName: fileA.originalName,
+            recordIndex: idx,
+          },
+        });
+      }
+    }
+  }
+
+  // 5. Overlap metrics
+  const baseTime = extractTimeRange(recordsA);
+  const targetTime = extractTimeRange(recordsB);
+  let temporalOverlapPercent: number | null = null;
+  if (baseTime && targetTime) {
+    const overlapMin = Math.max(baseTime.min, targetTime.min);
+    const overlapMax = Math.min(baseTime.max, targetTime.max);
+    if (overlapMax >= overlapMin) {
+      const overlapDuration = overlapMax - overlapMin;
+      const unionDuration =
+        Math.max(baseTime.max, targetTime.max) - Math.min(baseTime.min, targetTime.min);
+      temporalOverlapPercent =
+        unionDuration > 0
+          ? Math.round((overlapDuration / unionDuration) * 1000) / 10
+          : 100;
+    } else {
+      temporalOverlapPercent = 0;
+    }
+  }
+
+  const baseSpatial = extractSpatialKeys(recordsA);
+  const targetSpatial = extractSpatialKeys(recordsB);
+  let spatialOverlapPercent: number | null = null;
+  if (baseSpatial.size > 0 || targetSpatial.size > 0) {
+    let intersection = 0;
+    for (const k of targetSpatial) {
+      if (baseSpatial.has(k)) intersection++;
+    }
+    const union = new Set([...baseSpatial, ...targetSpatial]).size;
+    spatialOverlapPercent = union > 0 ? Math.round((intersection / union) * 1000) / 10 : 0;
+  }
+
+  const baseDevices = extractDeviceIds(recordsA);
+  const targetDevices = extractDeviceIds(recordsB);
+  let deviceOverlapPercent: number | null = null;
+  if (baseDevices.size > 0 || targetDevices.size > 0) {
+    let intersection = 0;
+    for (const d of targetDevices) {
+      if (baseDevices.has(d)) intersection++;
+    }
+    const union = new Set([...baseDevices, ...targetDevices]).size;
+    deviceOverlapPercent = union > 0 ? Math.round((intersection / union) * 1000) / 10 : 0;
+  }
+
+  // 6. Profiles & Schema drift
+  const snapshotA = profileRecords(recordsA, 0);
+  const snapshotB = profileRecords(recordsB, 0);
+
+  const baseColsMap = new Map<string, ColumnStatistics>(
+    snapshotA.columnStats.map((c) => [c.path, c])
+  );
+  const targetColsMap = new Map<string, ColumnStatistics>(
+    snapshotB.columnStats.map((c) => [c.path, c])
+  );
+
+  const schemaDrift: ColumnDiff[] = [];
+
+  for (const [path, tCol] of targetColsMap.entries()) {
+    const bCol = baseColsMap.get(path);
+    if (!bCol) {
+      schemaDrift.push({
+        columnPath: path,
+        changeType: "added",
+        severity: "info",
+        before: undefined,
+        after: tCol.inferredType,
+        explanation: `Kolona '${path}' postoji u fajlu '${fileB.originalName}', ali ne u '${fileA.originalName}'.`,
+      });
+      continue;
+    }
+
+    if (
+      bCol.inferredType !== tCol.inferredType &&
+      bCol.inferredType !== "null" &&
+      tCol.inferredType !== "null"
+    ) {
+      schemaDrift.push({
+        columnPath: path,
+        changeType: "type_changed",
+        severity: "critical",
+        before: bCol.inferredType,
+        after: tCol.inferredType,
+        explanation: `Tip kolone promenjen iz '${bCol.inferredType}' u '${tCol.inferredType}'.`,
+      });
+    }
+
+    const bNullRate = recordsA.length > 0 ? (bCol.nullCount / recordsA.length) * 100 : 0;
+    const tNullRate = recordsB.length > 0 ? (tCol.nullCount / recordsB.length) * 100 : 0;
+    const nullDelta = Math.round((tNullRate - bNullRate) * 10) / 10;
+
+    if (Math.abs(nullDelta) >= nullRateWarn) {
+      const severity = Math.abs(nullDelta) >= nullRateCrit ? "critical" : "warning";
+      schemaDrift.push({
+        columnPath: path,
+        changeType: "null_rate_changed",
+        severity,
+        before: Math.round(bNullRate * 10) / 10,
+        after: Math.round(tNullRate * 10) / 10,
+        absoluteDelta: nullDelta,
+        explanation: `Null stopa je promenjena sa ${bNullRate.toFixed(1)}% na ${tNullRate.toFixed(1)}% (${nullDelta > 0 ? "+" : ""}${nullDelta}%).`,
+      });
+    }
+
+    if (bCol.inferredType === "number" && tCol.inferredType === "number") {
+      if (bCol.average !== undefined && tCol.average !== undefined) {
+        const avgDiff = Math.abs(tCol.average - bCol.average);
+        const relChange = bCol.average !== 0 ? (avgDiff / Math.abs(bCol.average)) * 100 : 0;
+        if (relChange > 30) {
+          schemaDrift.push({
+            columnPath: path,
+            changeType: "average_changed",
+            severity: "warning",
+            before: Math.round(bCol.average * 100) / 100,
+            after: Math.round(tCol.average * 100) / 100,
+            absoluteDelta: Math.round((tCol.average - bCol.average) * 100) / 100,
+            percentDelta: Math.round(relChange * 10) / 10,
+            explanation: `Prosečna vrednost se promenila za ${relChange.toFixed(1)}% (sa ${bCol.average.toFixed(2)} na ${tCol.average.toFixed(2)}).`,
+          });
+        }
+      }
+    }
+  }
+
+  for (const [path, bCol] of baseColsMap.entries()) {
+    if (!targetColsMap.has(path)) {
+      schemaDrift.push({
+        columnPath: path,
+        changeType: "removed",
+        severity: "critical",
+        before: bCol.inferredType,
+        after: undefined,
+        explanation: `Kolona '${path}' postoji u fajlu '${fileA.originalName}', ali nedostaje u '${fileB.originalName}'.`,
+      });
+    }
+  }
+
+  const baseTotalCells = recordsA.length * (snapshotA.columnStats.length || 1);
+  const baseNullCells = snapshotA.columnStats.reduce((acc, c) => acc + c.nullCount, 0);
+  const baseGlobalNullRate = baseTotalCells > 0 ? (baseNullCells / baseTotalCells) * 100 : 0;
+
+  const targetTotalCells = recordsB.length * (snapshotB.columnStats.length || 1);
+  const targetNullCells = snapshotB.columnStats.reduce((acc, c) => acc + c.nullCount, 0);
+  const targetGlobalNullRate = targetTotalCells > 0 ? (targetNullCells / targetTotalCells) * 100 : 0;
+
+  return {
+    datasetId,
+    baseVersionId: fileA.id,
+    targetVersionId: fileB.id,
+    comparisonType: "files",
+    baseLabel: fileA.originalName,
+    targetLabel: fileB.originalName,
+    fileAId: fileA.id,
+    fileBId: fileB.id,
+    generatedAt: new Date().toISOString(),
+    kpis: {
+      recordCount: calcKpiDelta(recordsA.length, recordsB.length),
+      fileCount: calcKpiDelta(1, 1),
+      columnCount: calcKpiDelta(snapshotA.columnStats.length, snapshotB.columnStats.length),
+      overallNullRate: calcKpiDelta(
+        Math.round(baseGlobalNullRate * 10) / 10,
+        Math.round(targetGlobalNullRate * 10) / 10
+      ),
+      duplicateCount: calcKpiDelta(snapshotA.duplicateCount || 0, snapshotB.duplicateCount || 0),
       uniqueDeviceCount:
         baseDevices.size > 0 || targetDevices.size > 0
           ? calcKpiDelta(baseDevices.size, targetDevices.size)

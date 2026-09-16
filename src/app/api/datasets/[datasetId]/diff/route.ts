@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repository } from "@/lib/persistence";
-import { compareVersions } from "@/lib/analytics/diff-engine";
+import { compareVersions, compareFiles } from "@/lib/analytics/diff-engine";
 import { RecordWithLineage } from "@/lib/domain/types";
 
 export async function GET(
@@ -10,6 +10,75 @@ export async function GET(
   try {
     const { datasetId } = params;
     const { searchParams } = new URL(req.url);
+
+    const mode = searchParams.get("mode");
+    const fileIdA = searchParams.get("fileIdA");
+    const fileIdB = searchParams.get("fileIdB");
+
+    // 1. REŽIM POREĐENJA DVA FAJLA (FILE-TO-FILE DIFF)
+    if (mode === "files" || (fileIdA && fileIdB)) {
+      if (!fileIdA || !fileIdB || fileIdA === fileIdB) {
+        return NextResponse.json(
+          {
+            available: false,
+            message: "Izaberite dva različita fajla za poređenje.",
+          },
+          { status: 200 }
+        );
+      }
+
+      const [fileA, fileB] = await Promise.all([
+        repository.getSourceFile(fileIdA),
+        repository.getSourceFile(fileIdB),
+      ]);
+
+      if (!fileA || !fileB) {
+        return NextResponse.json(
+          { error: "Jedan od izabranih fajlova nije pronađen u sistemu." },
+          { status: 404 }
+        );
+      }
+
+      // Učitavanje zapisa za fajlove
+      const [recordsAAll, recordsBAll] = await Promise.all([
+        repository.getParsedRecords(fileA.datasetVersionId),
+        repository.getParsedRecords(fileB.datasetVersionId),
+      ]);
+
+      // Filtriranje zapisa po ID-ju fajla (lineage)
+      let recordsA = (recordsAAll as RecordWithLineage[]).filter(
+        (r) => r._fap_source_file_id === fileA.id
+      );
+      let recordsB = (recordsBAll as RecordWithLineage[]).filter(
+        (r) => r._fap_source_file_id === fileB.id
+      );
+
+      // Fallback: Ako u verziji postoji samo 1 fajl ili tag nije postavljen
+      if (recordsA.length === 0 && recordsAAll.length > 0) {
+        recordsA = recordsAAll as RecordWithLineage[];
+      }
+      if (recordsB.length === 0 && recordsBAll.length > 0) {
+        recordsB = recordsBAll as RecordWithLineage[];
+      }
+
+      const diff = compareFiles({
+        datasetId,
+        fileA,
+        fileB,
+        recordsA,
+        recordsB,
+        options: {
+          maxExamples: 20,
+        },
+      });
+
+      return NextResponse.json({
+        available: true,
+        diff,
+      });
+    }
+
+    // 2. REŽIM POREĐENJA VERZIJA (VERSION-TO-VERSION DIFF)
     let baseVersionId = searchParams.get("baseVersionId");
     let targetVersionId = searchParams.get("targetVersionId");
 

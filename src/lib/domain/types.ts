@@ -262,6 +262,11 @@ export type VersionDiff = {
   datasetId: string;
   baseVersionId: string;
   targetVersionId: string;
+  comparisonType?: "versions" | "files";
+  baseLabel?: string;
+  targetLabel?: string;
+  fileAId?: string;
+  fileBId?: string;
   generatedAt: string;
   kpis: {
     recordCount: KpiDelta;

@@ -401,8 +401,11 @@ export default function DashboardPage() {
             {activeTab === "compare" && selectedDatasetId && (
               <VersionCompareTab
                 datasetId={selectedDatasetId}
+                datasetName={activeDataset?.name}
                 versions={versions}
                 currentVersionId={selectedVersionId}
+                sourceFiles={sourceFiles}
+                onUploadSuccess={handleUploadSuccess}
               />
             )}
 

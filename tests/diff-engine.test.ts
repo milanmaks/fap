@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareVersions } from "../src/lib/analytics/diff-engine";
+import { compareVersions, compareFiles } from "../src/lib/analytics/diff-engine";
 import {
   AnalyticsSnapshot,
   DatasetVersion,
@@ -213,5 +213,88 @@ describe("Diff Engine - Version Comparison & Schema Drift", () => {
     expect(diff.overlap.deviceOverlapPercent).toBeGreaterThan(0);
     expect(diff.overlap.spatialOverlapPercent).toBeGreaterThan(0);
     expect(diff.overlap.temporalOverlapPercent).not.toBeNull();
+  });
+
+  it("compares two individual Avro files correctly with schema drift and overlap", () => {
+    const fileA: SourceFile = {
+      id: "file_cell_1",
+      datasetVersionId: "ver_1",
+      originalName: "export_CELL_INFO_1789578664964.avro",
+      fileType: "avro",
+      sizeBytes: 56600,
+      checksum: "checksum_avro_a",
+      status: "ready",
+      createdAt: "2026-03-01T10:00:00Z",
+    };
+
+    const fileB: SourceFile = {
+      id: "file_cell_2",
+      datasetVersionId: "ver_1",
+      originalName: "export_CELL_INFO_1789581616396.avro",
+      fileType: "avro",
+      sizeBytes: 38300,
+      checksum: "checksum_avro_b",
+      status: "ready",
+      createdAt: "2026-03-01T11:00:00Z",
+    };
+
+    const recordsA: RecordWithLineage[] = [
+      {
+        instanceId: "dev-01",
+        type: "CELL_INFO",
+        time: { timestamp: 1789578666805 },
+        locationSnapshot: { lat: 44.87, lng: 19.8, h3Index: "617522780852453375" },
+        signalDb: -85,
+      },
+      {
+        instanceId: "dev-01",
+        type: "CELL_INFO",
+        time: { timestamp: 1789578676800 },
+        locationSnapshot: { lat: 44.86, lng: 19.81, h3Index: "617522780852453376" },
+        signalDb: -90,
+      },
+    ];
+
+    const recordsB: RecordWithLineage[] = [
+      // Duplicate of first record
+      {
+        instanceId: "dev-01",
+        type: "CELL_INFO",
+        time: { timestamp: 1789578666805 },
+        locationSnapshot: { lat: 44.87, lng: 19.8, h3Index: "617522780852453375" },
+        signalDb: -85,
+      },
+      // New record in file B with an extra column
+      {
+        instanceId: "dev-02",
+        type: "CELL_INFO",
+        time: { timestamp: 1789578686784 },
+        locationSnapshot: { lat: 44.85, lng: 19.82, h3Index: "617522780852453377" },
+        signalDb: -78,
+        lteBand: 20,
+      },
+    ];
+
+    const diff = compareFiles({
+      datasetId: "ds_test",
+      fileA,
+      fileB,
+      recordsA,
+      recordsB,
+    });
+
+    expect(diff.comparisonType).toBe("files");
+    expect(diff.baseLabel).toBe(fileA.originalName);
+    expect(diff.targetLabel).toBe(fileB.originalName);
+    expect(diff.kpis.recordCount.before).toBe(2);
+    expect(diff.kpis.recordCount.after).toBe(2);
+    expect(diff.overlap.exactDuplicateRecords).toBe(1);
+    expect(diff.overlap.newRecords).toBe(1);
+    expect(diff.overlap.removedRecords).toBe(1);
+
+    // Schema drift check: lteBand should be added in file B
+    const addedCol = diff.schemaDrift.find((c) => c.columnPath === "lteBand");
+    expect(addedCol).toBeDefined();
+    expect(addedCol?.changeType).toBe("added");
   });
 });
