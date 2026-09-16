@@ -12,6 +12,7 @@ export interface IRepository {
   listDatasets(): Promise<Dataset[]>;
   getDataset(id: string): Promise<Dataset | null>;
   createDataset(name: string, description?: string): Promise<Dataset>;
+  deleteDataset(id: string): Promise<void>;
 
   // Versions
   listVersions(datasetId: string): Promise<DatasetVersion[]>;

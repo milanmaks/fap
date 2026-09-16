@@ -169,6 +169,29 @@ export class MemoryRepository implements IRepository {
     return ds;
   }
 
+  async deleteDataset(id: string): Promise<void> {
+    this.datasets.delete(id);
+    const versionIds = Array.from(this.versions.values())
+      .filter((v) => v.datasetId === id)
+      .map((v) => v.id);
+
+    for (const vid of versionIds) {
+      this.versions.delete(vid);
+      this.snapshots.delete(vid);
+      this.parsedRecords.delete(vid);
+      this.chatMessages.delete(vid);
+
+      const fileIds = Array.from(this.files.values())
+        .filter((f) => f.datasetVersionId === vid)
+        .map((f) => f.id);
+
+      for (const fid of fileIds) {
+        this.files.delete(fid);
+        this.fragments.delete(fid);
+      }
+    }
+  }
+
   // Versions
   async listVersions(datasetId: string): Promise<DatasetVersion[]> {
     return Array.from(this.versions.values())

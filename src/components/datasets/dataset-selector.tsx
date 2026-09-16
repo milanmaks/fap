@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Dataset } from "@/lib/domain/types";
-import { Database, Plus, ChevronDown } from "lucide-react";
+import { Database, Plus, ChevronDown, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "../ui/button";
 
 interface DatasetSelectorProps {
@@ -10,6 +10,7 @@ interface DatasetSelectorProps {
   currentDatasetId?: string;
   onSelectDataset: (id: string) => void;
   onCreateDataset: (name: string, description?: string) => Promise<void>;
+  onDeleteDataset?: (id: string) => Promise<void>;
 }
 
 export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
@@ -17,11 +18,14 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
   currentDatasetId,
   onSelectDataset,
   onCreateDataset,
+  onDeleteDataset,
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +43,23 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!currentDatasetId || !onDeleteDataset || deleting) return;
+    setDeleting(true);
+    try {
+      await onDeleteDataset(currentDatasetId);
+      setShowDeleteModal(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const currentDataset = datasets.find((d) => d.id === currentDatasetId);
 
   return (
-    <div className="flex items-center space-x-3">
+    <div className="flex items-center space-x-2">
       <div className="relative">
         <select
           value={currentDatasetId || ""}
@@ -64,10 +81,23 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
         size="sm"
         onClick={() => setShowModal(true)}
         className="gap-1 text-xs"
+        title="Kreiraj novi dataset"
       >
         <Plus className="w-3.5 h-3.5" />
-        Novi Dataset
+        <span className="hidden md:inline">Novi</span>
       </Button>
+
+      {currentDataset && onDeleteDataset && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowDeleteModal(true)}
+          className="text-slate-400 hover:text-rose-600 p-2"
+          title="Obriši trenutni dataset"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      )}
 
       {/* Modal dialog for creating new dataset */}
       {showModal && (
@@ -122,6 +152,48 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal for deleting dataset */}
+      {showDeleteModal && currentDataset && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <div className="flex items-center space-x-3 mb-3 text-rose-600">
+              <div className="p-2 bg-rose-50 rounded-lg">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900">
+                Brisanje dataset-a
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Da li ste sigurni da želite da trajno obrišete dataset{" "}
+              <strong className="text-slate-900 font-semibold">{currentDataset.name}</strong> i sve njegove
+              verzije, uvezene fajlove i istoriju razgovora?
+            </p>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+              >
+                Otkaži
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Brisanje..." : "Obriši Dataset"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

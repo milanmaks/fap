@@ -56,6 +56,12 @@ export class PrismaRepository implements IRepository {
     };
   }
 
+  async deleteDataset(id: string): Promise<void> {
+    await prisma.dataset.delete({
+      where: { id },
+    });
+  }
+
   async listVersions(datasetId: string): Promise<DatasetVersion[]> {
     const list = await prisma.datasetVersion.findMany({
       where: { datasetId },
