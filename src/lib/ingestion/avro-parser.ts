@@ -3,10 +3,34 @@ import snappyjs from "snappyjs";
 import { Readable } from "stream";
 import { ParseResult } from "./json-parser";
 
-// Ensure 64-bit integers don't crash when exceeding JS safe integer range
+// Safely decode 64-bit integers with zero precision loss for values exceeding JS safe integer range
+function readAvroLong(tap: any): number | string {
+  let res = 0n;
+  let shift = 0n;
+  const buf = tap.buf;
+  const len = buf.length;
+  while (true) {
+    if (tap.pos >= len) {
+      tap.pos = len + 1;
+      return 0;
+    }
+    const val = buf[tap.pos++];
+    const b = BigInt(val);
+    res |= (b & 0x7fn) << shift;
+    if (!(val & 0x80)) break;
+    shift += 7n;
+  }
+  const n = (res >> 1n) ^ -(res & 1n);
+  // If within safe integer range, return number; otherwise return full decimal string without scientific notation
+  if (n >= BigInt(Number.MIN_SAFE_INTEGER) && n <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return Number(n);
+  }
+  return n.toString();
+}
+
 if ((avsc as any).types?.LongType?.prototype) {
   (avsc as any).types.LongType.prototype._read = function (tap: any) {
-    return tap.readLong();
+    return readAvroLong(tap);
   };
 }
 

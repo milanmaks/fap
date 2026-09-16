@@ -182,3 +182,158 @@ export interface ChatMessage {
   citations: DataCitation[];
   createdAt: string;
 }
+
+// -------------------------------------------------------------
+// Version Comparison, Overlap & Data Observability Domain Types
+// -------------------------------------------------------------
+
+export type ChangeSeverity = "info" | "warning" | "critical";
+
+export type OverlapClassification =
+  | "exact_file"
+  | "canonical_row"
+  | "business_key"
+  | "temporal"
+  | "spatial"
+  | "device";
+
+export type RowComparisonClassification =
+  | "new"
+  | "exact_duplicate"
+  | "overlapping"
+  | "changed"
+  | "removed_from_current_version";
+
+export type QualityDimension =
+  | "completeness"
+  | "validity"
+  | "uniqueness"
+  | "consistency"
+  | "freshness"
+  | "schema_stability";
+
+export type QualityRuleStatus =
+  | "pass"
+  | "warning"
+  | "fail"
+  | "not_applicable";
+
+export type ColumnDiff = {
+  columnPath: string;
+  changeType:
+    | "added"
+    | "removed"
+    | "type_changed"
+    | "null_rate_changed"
+    | "range_changed"
+    | "average_changed"
+    | "cardinality_changed"
+    | "distribution_changed";
+  severity: ChangeSeverity;
+  before?: unknown;
+  after?: unknown;
+  absoluteDelta?: number;
+  percentDelta?: number;
+  explanation: string;
+};
+
+export type KpiDelta = {
+  before: number;
+  after: number;
+  absoluteDelta: number;
+  percentDelta: number | null;
+};
+
+export type RecordLineage = {
+  datasetVersionId: string;
+  sourceFileId?: string;
+  sourceFileName?: string;
+  recordIndex?: number;
+  fragmentId?: string;
+};
+
+export type RecordWithLineage = Record<string, unknown> & {
+  _fap_source_file_id?: string;
+  _fap_source_file_name?: string;
+  _fap_record_index?: number;
+};
+
+export type VersionDiff = {
+  datasetId: string;
+  baseVersionId: string;
+  targetVersionId: string;
+  generatedAt: string;
+  kpis: {
+    recordCount: KpiDelta;
+    fileCount: KpiDelta;
+    columnCount: KpiDelta;
+    overallNullRate: KpiDelta;
+    duplicateCount: KpiDelta;
+    uniqueDeviceCount?: KpiDelta;
+    timeRange?: {
+      base?: { start: string; end: string };
+      target?: { start: string; end: string };
+    };
+  };
+  schemaDrift: ColumnDiff[];
+  overlap: {
+    exactFiles: number;
+    exactDuplicateRecords: number;
+    overlappingRecords: number;
+    changedRecords: number;
+    newRecords: number;
+    removedRecords: number;
+    temporalOverlapPercent: number | null;
+    spatialOverlapPercent: number | null;
+    deviceOverlapPercent: number | null;
+  };
+  recordExamples: Array<{
+    classification: RowComparisonClassification;
+    businessKeyHash?: string;
+    canonicalHash?: string;
+    previous?: Record<string, unknown>;
+    current?: Record<string, unknown>;
+    lineage: RecordLineage;
+  }>;
+};
+
+export type QualityRule = {
+  id: string;
+  name: string;
+  description: string;
+  dimension: QualityDimension;
+  severity: "warning" | "critical";
+  enabled: boolean;
+  appliesTo?: string[];
+};
+
+export type QualityRuleEvaluation = {
+  ruleId: string;
+  ruleName?: string;
+  status: QualityRuleStatus;
+  affectedRecordCount: number;
+  affectedPercent: number;
+  explanation: string;
+  examples: Array<{
+    recordIndex?: number;
+    sourceFileId?: string;
+    values: Record<string, unknown>;
+  }>;
+};
+
+export type QualityDimensionScore = {
+  dimension: QualityDimension;
+  score: number;
+  weight: number;
+  explanation: string;
+};
+
+export type QualityScoreBreakdown = {
+  scope: "dataset_version" | "source_file" | "column";
+  score: number;
+  grade: "odlicno" | "dobro" | "upozorenje" | "kriticno";
+  dimensions: QualityDimensionScore[];
+  rules: QualityRuleEvaluation[];
+  generatedAt: string;
+  warnings: string[];
+};

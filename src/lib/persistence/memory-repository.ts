@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import {
   AnalyticsSnapshot,
   ChatMessage,
@@ -21,8 +23,51 @@ export class MemoryRepository implements IRepository {
   private auditEvents: Array<any> = [];
 
   constructor(seedDemo = true) {
-    if (seedDemo) {
+    const loaded = this.loadFromDisk();
+    if (!loaded && seedDemo) {
       this.seedDemoData();
+      this.saveToDisk();
+    }
+  }
+
+  private loadFromDisk(): boolean {
+    try {
+      const filePath = path.resolve(process.cwd(), ".data/memory_db.json");
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, "utf8");
+        const data = JSON.parse(raw);
+        if (data.datasets) this.datasets = new Map(Object.entries(data.datasets));
+        if (data.versions) this.versions = new Map(Object.entries(data.versions));
+        if (data.files) this.files = new Map(Object.entries(data.files));
+        if (data.fragments) this.fragments = new Map(Object.entries(data.fragments));
+        if (data.snapshots) this.snapshots = new Map(Object.entries(data.snapshots));
+        if (data.parsedRecords) this.parsedRecords = new Map(Object.entries(data.parsedRecords));
+        if (data.chatMessages) this.chatMessages = new Map(Object.entries(data.chatMessages));
+        return true;
+      }
+    } catch (e) {
+      console.error("Greška pri učitavanju memory_db.json:", e);
+    }
+    return false;
+  }
+
+  private saveToDisk(): void {
+    try {
+      const dir = path.resolve(process.cwd(), ".data");
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const filePath = path.join(dir, "memory_db.json");
+      const data = {
+        datasets: Object.fromEntries(this.datasets),
+        versions: Object.fromEntries(this.versions),
+        files: Object.fromEntries(this.files),
+        fragments: Object.fromEntries(this.fragments),
+        snapshots: Object.fromEntries(this.snapshots),
+        parsedRecords: Object.fromEntries(this.parsedRecords),
+        chatMessages: Object.fromEntries(this.chatMessages),
+      };
+      fs.writeFileSync(filePath, JSON.stringify(data));
+    } catch (e) {
+      console.error("Greška pri snimanju memory_db.json:", e);
     }
   }
 
@@ -166,6 +211,7 @@ export class MemoryRepository implements IRepository {
     const now = new Date().toISOString();
     const ds: Dataset = { id, name, description, createdAt: now, updatedAt: now };
     this.datasets.set(id, ds);
+    this.saveToDisk();
     return ds;
   }
 
@@ -190,6 +236,7 @@ export class MemoryRepository implements IRepository {
         this.fragments.delete(fid);
       }
     }
+    this.saveToDisk();
   }
 
   // Versions
@@ -230,7 +277,7 @@ export class MemoryRepository implements IRepository {
     if (ds) {
       ds.updatedAt = now;
     }
-
+    this.saveToDisk();
     return ver;
   }
 
@@ -239,6 +286,7 @@ export class MemoryRepository implements IRepository {
     if (!existing) throw new Error(`Verzija ${id} ne postoji.`);
     const updated = { ...existing, ...updates };
     this.versions.set(id, updated);
+    this.saveToDisk();
     return updated;
   }
 

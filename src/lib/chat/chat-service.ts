@@ -6,7 +6,9 @@ import {
   executeQueryPlanOnRecords,
   QueryExecutionResult,
 } from "../domain/analytics";
-import { ChartSpec, ChatMessage, DataCitation, QueryPlan } from "../domain/types";
+import { ChartSpec, ChatMessage, DataCitation, QueryPlan, RecordWithLineage } from "../domain/types";
+import { compareVersions } from "../analytics/diff-engine";
+import { evaluateDatasetQuality } from "../analytics/quality-engine";
 
 export interface ChatServiceInput {
   datasetId: string;
@@ -159,35 +161,108 @@ export class ChatService {
         })),
         warnings: [],
       };
-    } else if (validPlan.operation === "compare") {
-      // Find previous version
+    } else if (planResult.route === "data_quality" || input.message.toLowerCase().includes("kvalitet") || input.message.toLowerCase().includes("pravil")) {
+      const allRaw = await this.repository.getParsedRecords(version.id);
       const allVersions = await this.repository.listVersions(dataset.id);
       const prevVersion = allVersions.find((v) => v.versionNumber === version.versionNumber - 1);
+      const prevSnap = prevVersion ? await this.repository.getLatestSnapshot(prevVersion.id) : null;
 
-      if (!prevVersion) {
+      const qResult = evaluateDatasetQuality({
+        version,
+        records: allRaw as RecordWithLineage[],
+        snapshot,
+        previousVersion: prevVersion || null,
+        previousSnapshot: prevSnap,
+      });
+
+      const failedRules = qResult.rules.filter((r) => r.status === "fail" || r.status === "warning");
+      const rulesSummary =
+        failedRules.length > 0
+          ? `\n\nPravila sa upozorenjima/greškama:\n` +
+            failedRules
+              .map(
+                (r) =>
+                  `• **${r.ruleName || r.ruleId}**: [${r.status.toUpperCase()}] ${r.affectedRecordCount} zapisa (${r.explanation})`
+              )
+              .join("\n")
+          : "\n\nSva aktivna telemetrijska pravila su prošla (PASS).";
+
+      executionResult = {
+        summary: `Heuristička ocena kvaliteta za v${version.versionNumber}: **${qResult.score}/100** (${qResult.grade.toUpperCase()}).\n\nOcena po dimenzijama:\n` +
+          qResult.dimensions.map((d) => `• **${d.dimension}**: ${d.score}% (težina ${Math.round(d.weight * 100)}%) — ${d.explanation}`).join("\n") +
+          rulesSummary,
+        data: qResult,
+        recordCount: version.totalRecords,
+        citations: sourceFiles.map((sf) => ({
+          datasetId: dataset.id,
+          datasetVersionId: version.id,
+          sourceFileId: sf.id,
+          fileName: sf.originalName,
+        })),
+        warnings: qResult.warnings,
+      };
+    } else if (validPlan.operation === "compare" || planResult.route === "version_comparison") {
+      const allVersions = await this.repository.listVersions(dataset.id);
+      const sorted = allVersions
+        .filter((v) => v.status === "ready" || v.status === "partial")
+        .sort((a, b) => b.versionNumber - a.versionNumber);
+
+      const targetVer = version;
+      const baseVer = sorted.find((v) => v.id !== targetVer.id) || sorted[1];
+
+      if (!baseVer) {
         executionResult = {
-          summary: `Nije pronađena prethodna verzija za poređenje sa trenutnom verzijom v${version.versionNumber}.`,
+          summary: `Nije pronađena prethodna verzija za poređenje sa trenutnom verzijom v${version.versionNumber}. Za poređenje je potreban uvoz najmanje dve verzije dataset-a.`,
           data: null,
           recordCount: version.totalRecords,
           citations: [],
           warnings: ["Za poređenje je potrebno imati najmanje 2 verzije u dataset-u."],
         };
       } else {
-        const prevSnap = await this.repository.getLatestSnapshot(prevVersion.id);
-        const comp = compareSnapshots(
-          prevSnap || snapshot,
-          snapshot,
-          prevVersion.versionNumber,
-          version.versionNumber
-        );
+        const [baseFiles, baseSnapshot, baseRawRecords, targetRawRecords] = await Promise.all([
+          this.repository.listSourceFiles(baseVer.id),
+          this.repository.getLatestSnapshot(baseVer.id),
+          this.repository.getParsedRecords(baseVer.id),
+          this.repository.getParsedRecords(targetVer.id),
+        ]);
+
+        const diffResult = compareVersions({
+          datasetId: dataset.id,
+          baseVersion: baseVer,
+          targetVersion: targetVer,
+          baseFiles,
+          targetFiles: sourceFiles,
+          baseRecords: baseRawRecords as RecordWithLineage[],
+          targetRecords: targetRawRecords as RecordWithLineage[],
+          baseSnapshot: baseSnapshot || snapshot,
+          targetSnapshot: snapshot,
+        });
+
+        const driftSummary =
+          diffResult.schemaDrift.length > 0
+            ? `\n\nSchema drift promene (${diffResult.schemaDrift.length}):\n` +
+              diffResult.schemaDrift
+                .slice(0, 5)
+                .map((d) => `• \`${d.columnPath}\`: ${d.changeType} [${d.severity.toUpperCase()}] — ${d.explanation}`)
+                .join("\n")
+            : "\n\nNema detektovanih promena u šemi kolona.";
 
         executionResult = {
-          summary: `Poređenje verzija v${prevVersion.versionNumber} i v${version.versionNumber}.`,
-          data: comp,
-          recordCount: version.totalRecords,
+          summary:
+            `Poređenje verzije **v${targetVer.versionNumber}** naspram bazne **v${baseVer.versionNumber}**:\n` +
+            `• Ukupno zapisa: ${diffResult.kpis.recordCount.before} → ${diffResult.kpis.recordCount.after} (${diffResult.kpis.recordCount.absoluteDelta >= 0 ? "+" : ""}${diffResult.kpis.recordCount.absoluteDelta})\n` +
+            `• Novi zapisi: **${diffResult.overlap.newRecords}**\n` +
+            `• Identični duplikati: **${diffResult.overlap.exactDuplicateRecords}**\n` +
+            `• Izmenjeni zapisi (isti business key): **${diffResult.overlap.changedRecords}**\n` +
+            `• Uklonjeni zapisi: **${diffResult.overlap.removedRecords}**\n` +
+            `• Preklapanje vremena: ${diffResult.overlap.temporalOverlapPercent !== null ? diffResult.overlap.temporalOverlapPercent + "%" : "Nije dostupno"}\n` +
+            `• Preklapanje uređaja (instanceId): ${diffResult.overlap.deviceOverlapPercent !== null ? diffResult.overlap.deviceOverlapPercent + "%" : "Nije dostupno"}` +
+            driftSummary,
+          data: diffResult,
+          recordCount: targetVer.totalRecords,
           citations: [
-            { datasetId: dataset.id, datasetVersionId: prevVersion.id },
-            { datasetId: dataset.id, datasetVersionId: version.id },
+            { datasetId: dataset.id, datasetVersionId: baseVer.id },
+            { datasetId: dataset.id, datasetVersionId: targetVer.id },
           ],
           warnings: [],
         };

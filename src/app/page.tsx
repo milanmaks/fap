@@ -23,8 +23,12 @@ import {
   Sparkles,
   Columns,
   Files,
+  GitCompare,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils/format";
+import { VersionCompareTab } from "@/components/analytics/version-compare-tab";
+import { QualityTab } from "@/components/analytics/quality-tab";
+import { FileDetailModal } from "@/components/files/file-detail-modal";
 
 export default function DashboardPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -36,7 +40,8 @@ export default function DashboardPage() {
   const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [navTab, setNavTab] = useState<"analytics" | "chat">("analytics");
-  const [activeTab, setActiveTab] = useState<"overview" | "files">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "compare" | "quality" | "files">("overview");
+  const [selectedFileForModal, setSelectedFileForModal] = useState<SourceFile | null>(null);
 
   // Fetch all datasets
   const loadDatasets = useCallback(async (preferredDatasetId?: string) => {
@@ -322,49 +327,115 @@ export default function DashboardPage() {
               />
             )}
 
-            {/* Full-width Profile & Files Section */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-                      activeTab === "overview"
-                        ? "bg-indigo-600 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    Profil Kolona ({snapshot?.columnStats.length || 0})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("files")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-                      activeTab === "files"
-                        ? "bg-indigo-600 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    Uvezeni Fajlovi ({sourceFiles.length})
-                  </button>
-                </div>
-              </CardHeader>
+            {/* 4 Analytics Tabs Navigation */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  activeTab === "overview"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Pregled & Kolone ({snapshot?.columnStats.length || 0})</span>
+              </button>
 
-              <CardContent className="p-0">
-                {loading ? (
-                  <div className="py-12 flex items-center justify-center space-x-2 text-slate-400 text-xs">
-                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                    <span>Učitavanje analitike...</span>
-                  </div>
-                ) : activeTab === "overview" ? (
-                  <ColumnStatsTable
-                    stats={snapshot?.columnStats || []}
-                    totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
+              <button
+                onClick={() => setActiveTab("compare")}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  activeTab === "compare"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
+                }`}
+              >
+                <GitCompare className="w-3.5 h-3.5" />
+                <span>Poređenje Verzija (Diff & Overlap)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("quality")}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  activeTab === "quality"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Kvalitet Podataka (Data Quality)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("files")}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  activeTab === "files"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100 bg-white border border-slate-200"
+                }`}
+              >
+                <Files className="w-3.5 h-3.5" />
+                <span>Uvezeni Fajlovi ({sourceFiles.length})</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Overview & Column Stats */}
+            {activeTab === "overview" && (
+              <Card>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <div className="py-12 flex items-center justify-center space-x-2 text-slate-400 text-xs">
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                      <span>Učitavanje analitike...</span>
+                    </div>
+                  ) : (
+                    <ColumnStatsTable
+                      stats={snapshot?.columnStats || []}
+                      totalRecords={snapshot?.recordCount || currentVersion?.totalRecords || 0}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tab 2: Version Comparison & Diff */}
+            {activeTab === "compare" && selectedDatasetId && (
+              <VersionCompareTab
+                datasetId={selectedDatasetId}
+                versions={versions}
+                currentVersionId={selectedVersionId}
+              />
+            )}
+
+            {/* Tab 3: Data Quality Scoring */}
+            {activeTab === "quality" && selectedDatasetId && selectedVersionId && (
+              <QualityTab
+                datasetId={selectedDatasetId}
+                versionId={selectedVersionId}
+                versionNumber={currentVersion?.versionNumber}
+              />
+            )}
+
+            {/* Tab 4: Imported Files */}
+            {activeTab === "files" && (
+              <Card>
+                <CardContent className="p-0">
+                  <FileQueueTable
+                    files={sourceFiles}
+                    onViewFile={(file) => setSelectedFileForModal(file)}
                   />
-                ) : (
-                  <FileQueueTable files={sourceFiles} />
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* File Details & Records Explorer Modal */}
+            {selectedFileForModal && selectedDatasetId && selectedVersionId && (
+              <FileDetailModal
+                file={selectedFileForModal}
+                datasetId={selectedDatasetId}
+                versionId={selectedVersionId}
+                onClose={() => setSelectedFileForModal(null)}
+              />
+            )}
           </div>
         )}
 
