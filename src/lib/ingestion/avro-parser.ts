@@ -1,6 +1,27 @@
 import avsc from "avsc";
+import snappyjs from "snappyjs";
 import { Readable } from "stream";
 import { ParseResult } from "./json-parser";
+
+const defaultCodecs = ((avsc as any).streams?.BlockDecoder?.getDefaultCodecs?.() || {}) as Record<string, any>;
+
+const AVRO_CODECS = {
+  ...defaultCodecs,
+  snappy: (buf: Buffer, cb: (err: Error | null, res?: Buffer) => void) => {
+    try {
+      let uncompressed: Uint8Array | Buffer;
+      try {
+        // Avro snappy blocks can include a 4-byte CRC-32 checksum at the end
+        uncompressed = snappyjs.uncompress(buf.subarray(0, buf.length - 4));
+      } catch {
+        uncompressed = snappyjs.uncompress(buf);
+      }
+      cb(null, Buffer.from(uncompressed));
+    } catch (err: unknown) {
+      cb(err instanceof Error ? err : new Error(String(err)));
+    }
+  },
+};
 
 export interface AvroParser {
   parse(
@@ -43,7 +64,9 @@ export class ServerAvroParser implements AvroParser {
 
     let decoder: any;
     try {
-      decoder = (stream as any).pipe(new (avsc as any).streams.BlockDecoder());
+      decoder = (stream as any).pipe(
+        new (avsc as any).streams.BlockDecoder({ codecs: AVRO_CODECS })
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`Greška pri inicijalizaciji Avro dekodera: ${msg}`);
@@ -101,7 +124,9 @@ export class ServerAvroParser implements AvroParser {
     const stream = toNodeStream(input);
     return new Promise((resolve, reject) => {
       try {
-        const decoder = (stream as any).pipe(new (avsc as any).streams.BlockDecoder());
+        const decoder = (stream as any).pipe(
+          new (avsc as any).streams.BlockDecoder({ codecs: AVRO_CODECS })
+        );
         decoder.on("metadata", (type: any) => {
           resolve(type);
         });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import avsc from "avsc";
+import snappyjs from "snappyjs";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -33,6 +34,7 @@ describe("Server-Side Avro Parser", () => {
     encoder.end();
 
     await new Promise((resolve) => encoder.on("finish", resolve));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     const avroBuffer = await fs.promises.readFile(tempFile);
     await fs.promises.unlink(tempFile);
@@ -47,6 +49,53 @@ describe("Server-Side Avro Parser", () => {
     expect(decoded.length).toBe(2);
     expect(decoded[0].userId).toBe("usr_1");
     expect(decoded[1].event).toBe("purchase");
+  });
+
+  it("decodes a snappy-compressed Avro container file", async () => {
+    const schema = {
+      type: "record",
+      name: "SpeedTest",
+      fields: [
+        { name: "testId", type: "string" },
+        { name: "downloadSpeed", type: "double" },
+      ],
+    };
+
+    const type = avsc.Type.forSchema(schema as any);
+    const tempFile = path.join(os.tmpdir(), `snappy_${Date.now()}.avro`);
+    const encoder = avsc.createFileEncoder(tempFile, type, {
+      codec: "snappy",
+      codecs: {
+        snappy: (buf: Buffer, cb: any) => {
+          try {
+            cb(null, Buffer.from(snappyjs.compress(buf)));
+          } catch (err) {
+            cb(err);
+          }
+        },
+      },
+    });
+
+    encoder.write({ testId: "ST-001", downloadSpeed: 98.5 });
+    encoder.write({ testId: "ST-002", downloadSpeed: 104.2 });
+    encoder.end();
+
+    await new Promise((resolve) => encoder.on("finish", resolve));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const avroBuffer = await fs.promises.readFile(tempFile);
+    await fs.promises.unlink(tempFile);
+
+    const parser = new ServerAvroParser();
+    const decoded: any[] = [];
+    for await (const record of parser.parse(avroBuffer)) {
+      decoded.push(record);
+    }
+
+    expect(decoded.length).toBe(2);
+    expect(decoded[0].testId).toBe("ST-001");
+    expect(decoded[0].downloadSpeed).toBe(98.5);
+    expect(decoded[1].testId).toBe("ST-002");
   });
 
   it("handles malformed Avro buffer safely with descriptive error", async () => {
