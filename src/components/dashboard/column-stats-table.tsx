@@ -362,7 +362,7 @@ export const ColumnStatsTable: React.FC<ColumnStatsTableProps> = ({ stats, total
   // Grupe za prikaz
   const groupsToDisplay = useMemo(() => {
     if (viewMode === "table") {
-      return [{ key: "all" as CategoryKey, title: "Sve kolone", items: filteredStats }];
+      return [{ key: "all" as CategoryKey, title: "Sve kolone", icon: <TableIcon className="w-3.5 h-3.5" />, items: filteredStats }];
     }
 
     const groups: { key: CategoryKey; title: string; icon: React.ReactNode; items: ColumnStatistics[] }[] = [];
